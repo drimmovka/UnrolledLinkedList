@@ -1,23 +1,22 @@
-#include <list>
 #include <iostream>
-#include <algorithm>
-#include <vector>
 #include <chrono>
 
 #define START                0
 #define MIDDLE               1
 #define END                  2
 
-class List
+class Array
 {
 public:
-    List()
+    Array()
     {
-        head_ = nullptr;
+        data_ = nullptr;
         size_ = 0;
+        capacity_ = 0;
     }
-    ~List() = default;
 
+    ~Array() = default;
+    
     int size()
     {
         return size_;
@@ -29,37 +28,22 @@ public:
             throw std::out_of_range("Index out of range");
         }
 
-        Node *current = head_;
-        while (index > 0) {
-            current = current->next_;
-            index--;
-        }
-        return current->data_;
+        return data_[index];
     }
 
     void insert(int index, int value)
     {
-        Node *new_node = new Node(value);
-        size_++;
+        if (size_ == capacity_) {
+            expandCapacity();
+        }
 
         index = std::max(0, std::min(size_, index));
-        
-        if (index == 0) {
-            new_node->next_ = head_;
-            head_ = new_node;
-            return;
-        }
 
-        Node *current = head_;
-                 
-        while (index > 1) {
-            current = current->next_;
-            index--;
+        for (int i = size_; i > index; i--) {
+            data_[i] = data_[i-1];
         }
-        
-        new_node->next_ = current->next_;
-        current->next_ = new_node;
-        
+        data_[index] = value;
+        size_++;
     }
 
     void pushBack(int value)
@@ -77,22 +61,13 @@ public:
         if (index < 0 || index >= size_) {
             throw std::out_of_range("Index out of range");
         }
+        
+        for (int i = index; i < size_-1; i++) {
+            data_[i] = data_[i+1];
+        }
 
         size_--;
 
-        if (index == 0) {
-            head_ = head_->next_;
-            return;
-        }
-
-        Node *current = head_;
-                 
-        while (index > 1) {
-            current = current->next_;
-            index--;
-        }
-        
-        current->next_ = current->next_->next_;
     }
 
     void popBack()
@@ -107,54 +82,50 @@ public:
 
     int find(int value)
     {
-        Node *current = head_;
-        int index = 0;
-        while (current != nullptr) {
-            if (current->data_ == value) {
-                return index;
+        for (int i = 0; i < size_; i++) {
+            if (data_[i] == value) {
+                return i;
             }
-            current = current->next_;
-            index++;
         }
         return -1;
     }
 
+
 private:
-    class Node
-    {
-    public:
-        int data_;
-        Node* next_;
-
-        Node(int value)
-        {
-            data_ = value;
-            next_ = nullptr;
-        }
-    };
-
-    Node *head_;
+    int* data_;
     int size_;
+    int capacity_;
+
+    void expandCapacity()
+    {
+        capacity_ = std::max(1, capacity_*2);
+        int* new_data = new int[capacity_];
+        for (int i = 0; i < size_; i++) {
+            new_data[i] = data_[i];
+        }
+        data_ = new_data;
+    }
 };
 
 float measureFinding(int elements_number, int type)
 {
-    List lst;
+
+    Array arr;
     for (int i = 0; i < elements_number; i++) {
-        lst.pushFront(elements_number-i-1);
+        arr.pushBack(i);
     }
 
     auto begin = std::chrono::high_resolution_clock::now();
     switch (type)
     {
     case START:
-        lst.find(0);
+        arr.find(0);
         break;
     case MIDDLE:
-        lst.find(elements_number/2);
+        arr.find(elements_number/2);
         break;
     case END:
-        lst.find(elements_number-1);
+        arr.find(elements_number-1);
         break;
     default:
         return -1;
@@ -167,10 +138,9 @@ float measureFinding(int elements_number, int type)
 
 float measureInsertion(int elements_number, int insertions_number, int type)
 {
-    std::vector<int> input_values(elements_number);
-    List lst;
-    for (int i = 0; i < input_values.size(); i++) {
-        lst.pushFront(input_values[i]);
+    Array arr;
+    for (int i = 0; i < elements_number; i++) {
+        arr.pushBack(i);
     }
 
     auto begin = std::chrono::high_resolution_clock::now();
@@ -178,13 +148,13 @@ float measureInsertion(int elements_number, int insertions_number, int type)
         switch (type)
         {
         case START:
-            lst.pushFront(0);
+            arr.pushFront(0);
             break;
         case MIDDLE:
-            lst.insert(lst.size()/2, 0);
+            arr.insert(arr.size()/2, 0);
             break;
         case END:
-            lst.pushBack(0);
+            arr.pushBack(0);
             break;
         default:
             return -1;
@@ -200,10 +170,9 @@ float measureDeletion(int elements_number, int deletion_number, int type)
 {
     deletion_number = std::min(elements_number, deletion_number);
 
-    std::vector<int> input_values(elements_number);
-    List lst;
-    for (int i = 0; i < input_values.size(); i++) {
-        lst.pushFront(input_values[i]);
+    Array arr;
+    for (int i = 0; i < elements_number; i++) {
+        arr.pushBack(i);
     }
 
     auto begin = std::chrono::high_resolution_clock::now();
@@ -211,13 +180,13 @@ float measureDeletion(int elements_number, int deletion_number, int type)
         switch (type)
         {
         case START:
-            lst.popFront();
+            arr.popFront();
             break;
         case MIDDLE:
-            lst.pop(lst.size()/2);
+            arr.pop(arr.size()/2);
             break;
         case END:
-            lst.popBack();
+            arr.popBack();
             break;
         default:
             return -1;
@@ -229,15 +198,17 @@ float measureDeletion(int elements_number, int deletion_number, int type)
     return duration.count()/1000.0;
 }
 
+
+
 int main()
 {
     std::cout << "Finding in the beginning: " << measureFinding(100000, START) << " ms" << std::endl;
     std::cout << "Finding in the end: " << measureFinding(100000, END) << " ms" << std::endl;
     std::cout << "Finding in the middle: " << measureFinding(100000, MIDDLE) << " ms" << std::endl;
     
-    std::cout << "Insertion in the beginning: " << measureInsertion(0, 100000, START) << " ms" << std::endl;
-    std::cout << "Insertion in the end: " << measureInsertion(0, 100000, END) << " ms" << std::endl;
-    std::cout << "Insertion in the middle: " << measureInsertion(0, 100000, MIDDLE) << " ms" << std::endl;
+    std::cout << "Insertion in the beginning: " << measureInsertion(1000, 100000, START) << " ms" << std::endl;
+    std::cout << "Insertion in the end: " << measureInsertion(1000, 100000, END) << " ms" << std::endl;
+    std::cout << "Insertion in the middle: " << measureInsertion(1000, 100000, MIDDLE) << " ms" << std::endl;
 
     std::cout << "Deletion in the beginning: " <<measureDeletion(100000, 100000, START) << " ms" << std::endl;
     std::cout << "Deletion in the end: " << measureDeletion(100000, 100000, END) << " ms" << std::endl;
